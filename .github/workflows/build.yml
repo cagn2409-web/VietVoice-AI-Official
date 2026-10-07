@@ -1,0 +1,43 @@
+name: Build VietVoice AI Official
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+permissions:
+  contents: write
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - name: Android SDK
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Prepare bundled models and native runtime
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y patchelf
+          python3 tools/prepare_build.py
+          base64 --decode signing/vietvoice-test.keystore.base64 > signing/vietvoice-test.keystore
+      - name: Unit tests
+        run: gradle :app:testDebugUnitTest --stacktrace
+      - name: Build signed personal release
+        run: gradle :app:assembleRelease --stacktrace
+      - uses: actions/upload-artifact@v4
+        with:
+          name: VietVoice-AI-1.0-Official
+          path: app/build/outputs/apk/release/*.apk
+      - name: Publish personal APK download
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cp app/build/outputs/apk/release/app-release.apk VietVoice-AI-1.0-Official.apk
+          tag="build-${GITHUB_RUN_NUMBER}"
+          gh release create "$tag" VietVoice-AI-1.0-Official.apk --title "VietVoice AI 1.0 — build ${GITHUB_RUN_NUMBER}" --notes "Personal build signed with the included test key. Not a production store release. Device testing is still required."

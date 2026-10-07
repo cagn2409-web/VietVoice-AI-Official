@@ -1,0 +1,35 @@
+plugins { id 'com.android.application'; id 'org.jetbrains.kotlin.android' }
+android {
+    namespace 'vn.ca.vietvoiceoffline'
+    compileSdk 35
+    buildToolsVersion '35.0.0'
+    defaultConfig {
+        applicationId 'vn.ca.vietvoiceoffline'
+        minSdk 29
+        targetSdk 35
+        versionCode 100
+        versionName '1.0.0'
+        ndk { abiFilters 'arm64-v8a' }
+    }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+    kotlinOptions { jvmTarget = '17' }
+    packaging { jniLibs { useLegacyPackaging = true } }
+    signingConfigs { debug { storeFile file("../signing/vietvoice-test.keystore"); storePassword "android"; keyAlias "androiddebugkey"; keyPassword "android" } }
+    buildTypes { release { minifyEnabled false; signingConfig signingConfigs.debug } }
+}
+dependencies {
+    implementation 'org.tensorflow:tensorflow-lite:2.17.0'
+    implementation 'com.microsoft.onnxruntime:onnxruntime-android:1.30.0'
+    implementation files('libs/sherpa-onnx-1.13.8.aar')
+    implementation 'org.jetbrains.kotlin:kotlin-stdlib:2.1.0'
+    implementation 'com.google.mlkit:translate:17.0.3'
+    implementation 'com.google.mlkit:text-recognition-chinese:16.0.1'
+    implementation 'com.google.mlkit:text-recognition-japanese:16.0.1'
+    implementation 'com.google.mlkit:text-recognition-korean:16.0.1'
+    implementation 'com.google.mlkit:face-detection:16.1.7'
+    implementation 'com.google.mlkit:pose-detection:18.0.0-beta5'
+    implementation 'com.google.mlkit:image-labeling:17.0.9'
+    implementation 'com.google.ai.edge.litertlm:litertlm-android:0.17.1'
+    implementation 'org.apache.commons:commons-compress:1.27.1'
+    testImplementation 'junit:junit:4.13.2'
+}

@@ -1,0 +1,13 @@
+VietVoice AI 1.0 Official — build status
+
+Validated in this environment:
+- Java parser: all 34 Java source files parse successfully.
+- Pure-Java Official core test: PASS (SceneMemory, visual snapshot, DialogueContext, HeavyPrompt, Router/Quality classes compile).
+- HeavyTranslator Kotlin bridge: PASS against API-shape stubs matching current LiteRT-LM Kotlin API.
+- AndroidManifest.xml: valid XML.
+- Current LiteRT-LM API shape checked against upstream docs/source: EngineConfig visionBackend/maxNumImages, Content.ImageBytes, ConversationConfig maxOutputToken/thinkingConfig.
+
+Not performed here:
+- Full Gradle Android assemble, lint and device test. The execution container has no Gradle installation, Android SDK/android.jar, and cannot resolve external download hosts, so dependencies/toolchains cannot be fetched.
+
+A GitHub Actions workflow is included at .github/workflows/build-official.yml to run unit tests and assemble a signed personal release in an environment with Android/Gradle network access.
