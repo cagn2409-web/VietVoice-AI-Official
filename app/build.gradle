@@ -21,7 +21,7 @@ dependencies {
     implementation 'org.tensorflow:tensorflow-lite:2.17.0'
     implementation 'com.microsoft.onnxruntime:onnxruntime-android:1.30.0'
     implementation files('libs/sherpa-onnx-1.13.8.aar')
-    implementation 'org.jetbrains.kotlin:kotlin-stdlib:2.1.0'
+    implementation 'org.jetbrains.kotlin:kotlin-stdlib:2.4.0'
     implementation 'com.google.mlkit:translate:17.0.3'
     implementation 'com.google.mlkit:text-recognition-chinese:16.0.1'
     implementation 'com.google.mlkit:text-recognition-japanese:16.0.1'
