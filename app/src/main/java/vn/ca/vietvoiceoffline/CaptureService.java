@@ -82,7 +82,7 @@ public class CaptureService extends Service{
      State.status("Đang dịch theo ngữ cảnh · chờ kết quả trước khi đọc…");
      try{
       String refined=HeavyPrompt.cleanResponse(heavyAi.translateWaiting(language,source,vi,dialogue.prompt(SystemClock.elapsedRealtime())));
-      if(TranslationQuality.suspicious(language,source,refined))throw new IllegalStateException("Bản dịch chưa qua kiểm tra");
+      if(!SpecialistOutput.acceptable(language,source,vi,refined))throw new IllegalStateException("Bản dịch chưa qua kiểm tra");
       vi=refined;uncertain=false;engine+=" · HY-MT chuyên dịch offline";
      }catch(InterruptedException stop){throw stop;}catch(Exception error){engine+=" · DỊCH DỰ PHÒNG (HY-MT chưa hoàn tất)";}
     }
