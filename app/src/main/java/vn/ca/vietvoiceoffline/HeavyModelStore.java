@@ -11,8 +11,8 @@ import java.io.*;
 final class HeavyModelStore {
  static File dir(Context c){return new File(c.getFilesDir(),"heavy_ai");}
  static File model(Context c){return new File(dir(c),"official-model.litertlm");}
- static boolean ready(Context c){File f=model(c);return f.isFile()&&f.length()>64L*1024*1024;}
- static String status(Context c){File f=model(c);return ready(c)?String.format(java.util.Locale.ROOT,"AI nặng: %.2f GB · sẵn sàng",f.length()/1073741824.0):"AI nặng: chưa nhập model .litertlm";}
+ static boolean ready(Context c){if(HyModelStore.ready(c))return true;File f=model(c);return f.isFile()&&f.length()>64L*1024*1024;}
+ static String status(Context c){if(HyModelStore.ready(c))return "HY-MT 1.8B · bộ chuyên dịch offline đã tải (1,13 GB)";File f=model(c);return ready(c)?String.format(java.util.Locale.ROOT,"AI nặng: %.2f GB · sẵn sàng",f.length()/1073741824.0):"AI nặng: chưa nhập model .litertlm";}
  static void remove(Context c){File f=model(c);if(f.exists()&&!f.delete())throw new IllegalStateException("Không xóa được model AI nặng");}
  static long totalMemory(Context c){try{ActivityManager.MemoryInfo m=new ActivityManager.MemoryInfo();c.getSystemService(ActivityManager.class).getMemoryInfo(m);return m.totalMem;}catch(Throwable ignored){return 0;}}
  static String recommendation(Context c){double gb=totalMemory(c)/1073741824.0;if(gb>=11.5)return "Khuyến nghị máy này: Gemma 3n E4B · khoảng 4.92 GB · đa phương thức.";if(gb>=7.5)return "Khuyến nghị máy này: Gemma 3n E2B · khoảng 3.66 GB · đa phương thức.";return "RAM máy thấp cho Gemma 3n nặng: dùng Gemma3 1B (~0.58 GB) ổn định hơn; Scene AI vẫn hoạt động riêng.";}

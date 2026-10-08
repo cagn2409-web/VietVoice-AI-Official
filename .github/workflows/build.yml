@@ -19,7 +19,7 @@ jobs:
           packages: platform-tools
           log-accepted-android-sdk-licenses: false
       - name: Android SDK
-        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0" "ndk;28.2.13676358" "cmake;3.22.1"
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.9'
@@ -29,6 +29,12 @@ jobs:
           sudo apt-get install -y patchelf
           python3 tools/prepare_build.py
           base64 --decode signing/vietvoice-test.keystore.base64 > signing/vietvoice-test.keystore
+      - name: Validate real offline model on host CPU
+        run: |
+          cmake -S app/src/main/cpp -B /tmp/hy-host -DCMAKE_BUILD_TYPE=Release
+          cmake --build /tmp/hy-host --target hy_smoke -j 4
+          python3 tools/download_hy_test.py
+          /tmp/hy-host/hy_smoke /tmp/hy-test.gguf 2>/tmp/hy-runtime.log | tee quality-validation.txt
       - name: Unit tests
         run: gradle :app:testDebugUnitTest --stacktrace
       - name: Build signed personal release
@@ -40,11 +46,13 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: VietVoice-AI-1.0-Official
-          path: app/build/outputs/apk/release/*.apk
+          path: |
+            app/build/outputs/apk/release/*.apk
+            quality-validation.txt
       - name: Publish personal APK download
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           cp app/build/outputs/apk/release/app-release.apk VietVoice-AI-1.0-Official.apk
           tag="build-${GITHUB_RUN_NUMBER}"
-          gh release create "$tag" VietVoice-AI-1.0-Official.apk --title "VietVoice AI 1.0 — build ${GITHUB_RUN_NUMBER}" --notes "Personal build signed with the included test key. Not a production store release. Device testing is still required."
+          gh release create "$tag" VietVoice-AI-1.0-Official.apk --title "VietVoice AI 1.0 — build ${GITHUB_RUN_NUMBER}" --notes "Personal build signed with the included test key. Not a production store release. HY-MT offline quality mode with automatic model download. Redmi performance still requires device testing."

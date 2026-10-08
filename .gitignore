@@ -5,3 +5,7 @@ app/libs/*.aar
 app/src/main/assets/*.onnx
 app/src/main/assets/*.tflite
 signing/*.keystore
+
+third_party/
+.cxx/
+**/.cxx/

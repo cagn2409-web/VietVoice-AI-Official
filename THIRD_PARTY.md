@@ -42,3 +42,7 @@ Assets: silero_vad.onnx, licenses/silero-vad.txt, licenses/sherpa-onnx.txt. 16 k
 - Google ML Kit Pose Detection 18.0.0-beta5 — on-device pose hints.
 - Google ML Kit Image Labeling 17.0.9 — on-device scene labels.
 - Google AI Edge LiteRT-LM 0.17.1 — optional local LLM runtime for user-selected `.litertlm` models.
+
+## Offline quality translation
+- HY-MT1.5-1.8B Q4_K_M by Tencent, downloaded from its official Hugging Face repository, revision 265b2e615a7dc9b06c435dc878829ad99a512ba2. License: app/src/main/assets/licenses/hy-mt.txt. Model bytes are not embedded in the APK.
+- llama.cpp by ggml-org, MIT license, revision 988190680d5a89fce97de3c20df2c2813731fd61. License copied from the pinned source into APK assets by tools/prepare_build.py.

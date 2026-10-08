@@ -18,3 +18,13 @@ original=root/'app/libs/sherpa-original.aar'
 download(asset['browser_download_url'], original, digest.removeprefix('sha256:') if digest.startswith('sha256:') else None)
 subprocess.run(['python3',str(root/'tools/isolate_sherpa_runtime.py'),str(original),str(root/'app/libs/sherpa-onnx-1.13.8.aar'),'patchelf'],check=True)
 original.unlink()
+
+# Pinned llama.cpp runtime for the bundled HY-MT translator.
+llama=root/'third_party/llama.cpp'
+if not llama.exists():
+    llama.parent.mkdir(parents=True,exist_ok=True)
+    subprocess.run(['git','init',str(llama)],check=True)
+    subprocess.run(['git','-C',str(llama),'remote','add','origin','https://github.com/ggml-org/llama.cpp.git'],check=True)
+subprocess.run(['git','-C',str(llama),'fetch','--depth','1','origin','988190680d5a89fce97de3c20df2c2813731fd61'],check=True)
+subprocess.run(['git','-C',str(llama),'checkout','--detach','FETCH_HEAD'],check=True)
+(root/'app/src/main/assets/licenses/llama-cpp.txt').write_bytes((llama/'LICENSE').read_bytes())

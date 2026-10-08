@@ -26,12 +26,13 @@ final class ModelStore {
     if(audio)for(int i=0;i<3;i++)downloadFile(c,i);
     RecognitionPack.install(c);
     VoicePack.install(c);
-    ClonePack.install(c);
+    if(c.getSharedPreferences("settings",0).getBoolean("clone",false))ClonePack.install(c);
+    HyModelStore.install(c);
     for(String language:new String[]{"ja","zh","ko"}){
      State.setup("Đang tải bộ dịch "+(language.equals("ja")?"Nhật":language.equals("zh")?"Trung":"Hàn")+" → Việt…");
      Translator t=translator(language);try{Tasks.await(t.downloadModelIfNeeded(new DownloadConditions.Builder().build()),15,TimeUnit.MINUTES);}finally{t.close();}
     }
-    State.setup("Đã tải đủ bộ offline Nhật / Trung / Hàn và giọng Việt. Bấm Bắt đầu để dùng.");
+    State.setup("Đã tải đủ bộ chuyên dịch HY-MT, bộ nghe và giọng Việt. Bấm Bắt đầu để dùng.");
    }catch(Exception e){State.setup("Tải chưa xong: "+State.error(e)+". Bấm tải lại để tiếp tục.");}
    finally{State.downloading=false;State.changed();}
   },"models").start();

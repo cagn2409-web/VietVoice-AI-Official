@@ -3,13 +3,16 @@ android {
     namespace 'vn.ca.vietvoiceoffline'
     compileSdk 35
     buildToolsVersion '35.0.0'
+    ndkVersion '28.2.13676358'
+    externalNativeBuild { cmake { path file('src/main/cpp/CMakeLists.txt'); version '3.22.1' } }
     defaultConfig {
         applicationId 'vn.ca.vietvoiceoffline'
         minSdk 29
         targetSdk 35
-        versionCode 100
-        versionName '1.0.0'
+        versionCode 101
+        versionName '1.0.1'
         ndk { abiFilters 'arm64-v8a' }
+        externalNativeBuild { cmake { arguments '-DANDROID_STL=c++_static'; cppFlags '-std=c++17' } }
     }
     compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
     kotlinOptions { jvmTarget = '17' }

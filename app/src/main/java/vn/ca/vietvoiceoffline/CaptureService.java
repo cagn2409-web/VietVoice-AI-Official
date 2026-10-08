@@ -56,6 +56,7 @@ public class CaptureService extends Service{
   TranslationJournal journal=TranslationJournal.get(this);Translator local=null;android.util.LruCache<String,String> cache=new android.util.LruCache<>(512);
   try{
    State.status("Đang kiểm tra bộ offline…");if(!ModelStore.translationPresent(language))throw new IllegalStateException("Chưa tải bộ dịch. Mở app → Chuẩn bị offline.");local=ModelStore.translator(language);
+   if(!live&&heavyAi!=null){State.status("Đang nạp bộ chuyên dịch offline…");if(!heavyAi.awaitReady())throw new IllegalStateException(heavyAi.status());}
    if(!mode.equals("ocr")){recognition=new Thread(this::recognize,"recognition");recognition.start();}
    if(!active)return;
    State.main.post(()->{if(!active)return;try{
@@ -77,6 +78,14 @@ public class CaptureService extends Service{
       String retry=TranslationQuality.retrySource(source);if(!retry.equals(source)&&!retry.isEmpty()){String candidate=Tasks.await(local.translate(retry),30,TimeUnit.SECONDS);if(!TranslationQuality.suspicious(language,retry,candidate)){vi=candidate;engine+=" · Translation AI kiểm tra lại";}}
       if(TranslationQuality.suspicious(language,source,vi)){uncertain=true;engine+=" · Translation AI: chưa chắc";}
      }}
+    if(!live&&!fromMemory&&heavyAi!=null){
+     State.status("Đang dịch theo ngữ cảnh · chờ kết quả trước khi đọc…");
+     try{
+      String refined=HeavyPrompt.cleanResponse(heavyAi.translateWaiting(language,source,vi,dialogue.prompt(SystemClock.elapsedRealtime())));
+      if(TranslationQuality.suspicious(language,source,refined))throw new IllegalStateException("Bản dịch chưa qua kiểm tra");
+      vi=refined;uncertain=false;engine+=" · HY-MT chuyên dịch offline";
+     }catch(InterruptedException stop){throw stop;}catch(Exception error){engine+=" · DỊCH DỰ PHÒNG (HY-MT chưa hoàn tất)";}
+    }
     aiRouter.translated(SystemClock.elapsedRealtime()-began);
 
     if(!active)break;
@@ -87,8 +96,8 @@ public class CaptureService extends Service{
     State.result(source,vi,String.format(java.util.Locale.ROOT,"Sau khi thu/nhận chữ: %.1f giây · xử lý dịch %.1f giây · bỏ %d đoạn quá tải",age/1000.0,(SystemClock.elapsedRealtime()-began)/1000.0,skipped),engine,record);
     dialogue.add(job.time,source,vi);
     State.status((uncertain?"Đã giữ lại để bạn xem · ":"Đang dịch · ")+engine);
-    if(voice!=null&&!uncertain&&getSharedPreferences("settings",0).getBoolean("speak",true))voice.speak(vi,job.reference,job.time);
-    if(!uncertain&&!fromMemory&&record>=0&&heavyAi!=null&&getSharedPreferences("settings",0).getBoolean("heavyAi",true)){
+    if(voice!=null&&!uncertain&&getSharedPreferences("settings",0).getBoolean("speak",true))voice.speak(vi,job.reference,live?job.time:SystemClock.elapsedRealtime());
+    if(live&&!uncertain&&!fromMemory&&record>=0&&heavyAi!=null&&getSharedPreferences("settings",0).getBoolean("heavyAi",true)){
      final long outputId=record,outputTime=job.time;final String outputSource=source,fastVi=vi,baseEngine=engine;
      long contextNow=SystemClock.elapsedRealtime();String scene=sceneMemory.prompt(contextNow),history=dialogue.prompt(contextNow);byte[] sceneImage=sceneMemory.latestImage(contextNow);
      heavyAi.refine(language,source,vi,scene,history,sceneImage,(refined,heavyMs,error)->{
