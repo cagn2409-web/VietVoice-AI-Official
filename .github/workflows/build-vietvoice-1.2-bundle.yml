@@ -4,7 +4,6 @@ on:
   push:
     paths:
       - 'VietVoice-1.2-CI-bundle.zip'
-      - '.github/workflows/build-vietvoice-1.2-bundle.yml'
 permissions:
   contents: write
 jobs:
