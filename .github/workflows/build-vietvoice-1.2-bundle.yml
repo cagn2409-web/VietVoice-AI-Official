@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - 'VietVoice-1.2-CI-bundle.zip'
+      - 'BUILD-TRIGGER-1.2.txt'
 permissions:
   contents: write
 jobs:
