@@ -22,10 +22,11 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      - uses: android-actions/setup-android@v3
       - name: Android SDK and native packaging dependencies
         run: |
-          sdkmanager --install "platforms;android-35" "build-tools;35.0.0"
+          sdk="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$sdk" --licenses > /tmp/vietvoice-sdk-licenses.log || true
+          "$sdk" --install "platforms;android-35" "build-tools;35.0.0"
           sudo apt-get update -qq
           sudo apt-get install -y patchelf
       - uses: gradle/actions/setup-gradle@v4
