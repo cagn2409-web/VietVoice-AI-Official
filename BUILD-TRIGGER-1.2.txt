@@ -1,2 +1,3 @@
 VietVoice AI 1.2.1 source SHA256: f76ef11c4ad43069bc5a02a610ea455ed677026ad25e00cf6bfd169fc511057e
 Build retry 1: use preinstalled Android SDK and handle licenses.
+Build retry 2: align Kotlin compiler 2.4.0 with LiteRT-LM metadata 2.4.
