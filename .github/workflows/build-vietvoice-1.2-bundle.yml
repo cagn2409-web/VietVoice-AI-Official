@@ -17,6 +17,8 @@ jobs:
           test -f VietVoice-1.2-CI-bundle.zip || { echo 'Missing VietVoice-1.2-CI-bundle.zip in repository root'; exit 1; }
           unzip -t VietVoice-1.2-CI-bundle.zip
           unzip -oq VietVoice-1.2-CI-bundle.zip -d .
+          # LiteRT-LM 0.17.1 ships Kotlin 2.4 metadata.
+          sed -i 's/2.1.0/2.4.0/g' build.gradle app/build.gradle
           test -f app/src/main/java/vn/ca/vietvoiceoffline/TenAiModules.java
           ! grep -r -q 'com.google.mlkit' app/src/main/java app/src/main/kotlin app/build.gradle
       - uses: actions/setup-java@v4
