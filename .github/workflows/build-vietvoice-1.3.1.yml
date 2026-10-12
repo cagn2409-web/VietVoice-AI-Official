@@ -1,0 +1,58 @@
+name: VietVoice 1.3.1 Background Download
+on:
+  workflow_dispatch:
+  push:
+    branches: [vietvoice-1.3.1-background-download]
+    paths:
+      - 'VietVoice-1.3.1-CI-bundle.zip'
+      - '.github/workflows/build-vietvoice-1.3.1.yml'
+permissions:
+  contents: write
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 85
+    steps:
+      - uses: actions/checkout@v4
+      - name: Unpack updated source
+        run: |
+          unzip -t VietVoice-1.3.1-CI-bundle.zip
+          unzip -oq VietVoice-1.3.1-CI-bundle.zip -d .
+          test -f app/src/main/java/vn/ca/vietvoiceoffline/ModelDownloadService.java
+          grep -q 'FOREGROUND_SERVICE_DATA_SYNC' app/src/main/AndroidManifest.xml
+          ! grep -r -q 'com.google.mlkit' app/src/main/java app/src/main/kotlin app/build.gradle
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Android tools and dependencies
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-35" "build-tools;35.0.0"
+          sudo apt-get update -qq
+          sudo apt-get install -y patchelf
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Restore native dependencies
+        run: |
+          python3 tools/prepare_ci_assets_1_2.py
+          base64 --decode signing/vietvoice-test.keystore.base64 > signing/vietvoice-test.keystore
+      - name: Tests
+        run: gradle :app:testDebugUnitTest --stacktrace
+      - name: Build APK
+        run: gradle :app:assembleRelease --stacktrace
+      - name: Verify signed APK
+        run: |
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose app/build/outputs/apk/release/app-release.apk
+          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c 4 app/build/outputs/apk/release/app-release.apk
+          cp app/build/outputs/apk/release/app-release.apk VietVoice-AI-1.3.1-Background-Download.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: VietVoice-AI-1.3.1-Background-Download
+          path: VietVoice-AI-1.3.1-Background-Download.apk
+      - name: Publish signed APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v1.3.1-bg-${GITHUB_RUN_NUMBER}" VietVoice-AI-1.3.1-Background-Download.apk --title "VietVoice AI 1.3.1 - Tai model nen" --notes "Foreground dataSync model download, Android notification, pause/resume, can close Activity. Android 15 dataSync time limits apply. Test build."
