@@ -1,10 +1,59 @@
-name: VietVoice 1.4.3 test
+name: Build VietVoice AI 1.4.3 Video Doctor
 on:
+  workflow_dispatch:
   push:
     branches: [vietvoice-1.4.3-video-doctor]
+    paths:
+      - 'VietVoice-1.4.3-video-doctor.patch.xz.base64'
+      - '.github/workflows/build-vietvoice-1.4.3-video-doctor.yml'
+permissions:
+  contents: read
 jobs:
-  test:
+  android:
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
-      - run: echo ready
+      - name: Restore source and apply safe patches
+        shell: bash
+        run: |
+          set -euo pipefail
+          unzip -oq VietVoice-1.4.1-CI-bundle.zip -d .
+          base64 --decode VietVoice-1.4.2-DNS-overlay.zip.base64 > /tmp/vv142-overlay.zip
+          echo "ee574ce74b2e0564273dbc4fc3765503111c7634bda49b9e617168542763dd92  /tmp/vv142-overlay.zip" | sha256sum -c -
+          unzip -oq /tmp/vv142-overlay.zip -d .
+          base64 --decode VietVoice-1.4.3-video-doctor.patch.xz.base64 > /tmp/vv143.patch.xz
+          echo "deb9095263018c909164520123acb4dc9e13b76d3cd6e1d14c87cec63828d4f2  /tmp/vv143.patch.xz" | sha256sum -c -
+          xz -dc /tmp/vv143.patch.xz | patch -p1 --batch --forward
+          sed -i 's/<domain>/<domain includeSubdomains="false">/g' app/src/main/res/xml/network_security_config.xml
+          grep -q "versionCode 143" app/build.gradle
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Android SDK and native tools
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install 'platforms;android-35' 'build-tools;35.0.0'
+          sudo apt-get update -qq
+          sudo apt-get install -y patchelf
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Restore native project dependencies
+        run: |
+          python3 tools/prepare_ci_assets_1_2.py
+          base64 --decode signing/vietvoice-test.keystore.base64 > signing/vietvoice-test.keystore
+      - name: Unit tests
+        run: gradle :app:testDebugUnitTest --stacktrace
+      - name: Build APK
+        run: gradle :app:assembleRelease --stacktrace
+      - name: Verify signature and alignment
+        run: |
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose app/build/outputs/apk/release/app-release.apk
+          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c 4 app/build/outputs/apk/release/app-release.apk
+          cp app/build/outputs/apk/release/app-release.apk VietVoice-AI-1.4.3-VideoDoctor.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: VietVoice-1.4.3-VideoDoctor
+          path: VietVoice-AI-1.4.3-VideoDoctor.apk
