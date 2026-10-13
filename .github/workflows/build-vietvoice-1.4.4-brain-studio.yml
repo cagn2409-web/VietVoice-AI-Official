@@ -29,6 +29,7 @@ jobs:
           base64 --decode VietVoice-1.4.4-brain-studio-overlay.zip.base64 > /tmp/vv144.zip
           echo "d9a038d7095e4af9b581e282cf9ec798bec7f9e08353877490cf1aa170ccc694  /tmp/vv144.zip" | sha256sum -c -
           unzip -oq /tmp/vv144.zip -d .
+          cp 1.4.4-fixes/BrainOrchestrator.java app/src/main/java/vn/ca/vietvoiceoffline/BrainOrchestrator.java
           sed -i 's/<domain>/<domain includeSubdomains="false">/g' app/src/main/res/xml/network_security_config.xml
           grep -q "versionCode 144" app/build.gradle
           test -f app/src/main/java/vn/ca/vietvoiceoffline/BrainChatActivity.java
