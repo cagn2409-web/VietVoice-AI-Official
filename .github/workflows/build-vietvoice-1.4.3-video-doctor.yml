@@ -1,0 +1,10 @@
+name: VietVoice 1.4.3 test
+on:
+  push:
+    branches: [vietvoice-1.4.3-video-doctor]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo ready
