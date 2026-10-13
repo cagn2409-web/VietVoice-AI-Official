@@ -1,0 +1,94 @@
+name: Build VietVoice AI 1.4.8 Auto Language
+on:
+  workflow_dispatch:
+  push:
+    branches: [vietvoice-1.4.8-auto-language]
+    paths:
+      - 'VietVoice-1.4.8-AutoLang-overlay.base64'
+      - '.github/workflows/build-vietvoice-1.4.8-auto-language.yml'
+permissions:
+  contents: write
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reconstruct 1.4.8 source and validate upgrade
+        shell: bash
+        run: |
+          set -euo pipefail
+          unzip -t VietVoice-1.4.1-CI-bundle.zip
+          unzip -oq VietVoice-1.4.1-CI-bundle.zip -d .
+          base64 --decode VietVoice-1.4.2-DNS-overlay.zip.base64 > /tmp/vv142.zip
+          echo "ee574ce74b2e0564273dbc4fc3765503111c7634bda49b9e617168542763dd92  /tmp/vv142.zip" | sha256sum -c -
+          unzip -oq /tmp/vv142.zip -d .
+          base64 --decode VietVoice-1.4.3-video-doctor.patch.xz.base64 > /tmp/vv143.patch.xz
+          echo "deb9095263018c909164520123acb4dc9e13b76d3cd6e1d14c87cec63828d4f2  /tmp/vv143.patch.xz" | sha256sum -c -
+          xz -dc /tmp/vv143.patch.xz | patch -p1 --batch --forward
+          base64 --decode VietVoice-1.4.4-brain-studio-overlay.zip.base64 > /tmp/vv144.zip
+          echo "d9a038d7095e4af9b581e282cf9ec798bec7f9e08353877490cf1aa170ccc694  /tmp/vv144.zip" | sha256sum -c -
+          unzip -oq /tmp/vv144.zip -d .
+          cp 1.4.4-fixes/BrainOrchestrator.java app/src/main/java/vn/ca/vietvoiceoffline/BrainOrchestrator.java
+          base64 --decode VietVoice-1.4.5-SelfUI-Overlay.base64 > /tmp/vv145.zip
+          echo "c7f3b90be16811f6eaf5f880259e59f49521f750881d30a15ac2765b568db6e5  /tmp/vv145.zip" | sha256sum -c -
+          unzip -oq /tmp/vv145.zip -d .
+          base64 --decode VietVoice-1.4.6-Cinema-Studio-overlay.base64 > /tmp/vv146.zip
+          echo "fc5387e6648b08ff51b179cbc9b6454b127e070365fcb85ca9c3e1cfa9f5cc8d  /tmp/vv146.zip" | sha256sum -c -
+          unzip -oq /tmp/vv146.zip -d .
+          base64 --decode VietVoice-1.4.7-Private-Cinema-overlay.base64 > /tmp/vv147.zip
+          echo "5c602ad6397bf10f4dcc4af9406089aaab34aa4520aa686c7e178b6cfc6c8d6f  /tmp/vv147.zip" | sha256sum -c -
+          unzip -oq /tmp/vv147.zip -d .
+          base64 --decode VietVoice-1.4.8-AutoLang-overlay.base64 > /tmp/vv148.zip
+          echo "85b40263ec7032372a0a0003f12b5204eb8b0a82cb6919d12cb8a74a5b1584ac  /tmp/vv148.zip" | sha256sum -c -
+          unzip -oq /tmp/vv148.zip -d .
+          test -f app/src/main/java/vn/ca/vietvoiceoffline/AutoLanguagePolicy.java
+          test -f app/src/test/java/vn/ca/vietvoiceoffline/AutoLanguagePolicyTest.java
+          test -f app/src/main/java/vn/ca/vietvoiceoffline/AdultCinemaPolicy.java
+          test -f app/src/test/java/vn/ca/vietvoiceoffline/AdultCinemaPolicyTest.java
+          test -f app/src/main/java/vn/ca/vietvoiceoffline/SubtitleStudioActivity.java
+          test -f app/src/test/java/vn/ca/vietvoiceoffline/SubtitleStudioCoreTest.java
+                    test -f app/src/main/java/vn/ca/vietvoiceoffline/UiCustomizer.java
+          test -f app/src/test/java/vn/ca/vietvoiceoffline/UiCommandPolicyTest.java
+          sed -i 's/<domain>/<domain includeSubdomains="false">/g' app/src/main/res/xml/network_security_config.xml
+          grep -q "versionCode 148" app/build.gradle
+          test -f app/src/main/java/vn/ca/vietvoiceoffline/BrainChatActivity.java
+          test -f app/src/main/java/vn/ca/vietvoiceoffline/BrainOrchestrator.java
+          grep -q 'android:allowAudioPlaybackCapture="true"' app/src/main/AndroidManifest.xml
+          sed -i 's/compileSdk 35/compileSdk 36/' app/build.gradle
+          sed -i 's/8.7.3/8.13.2/g' build.gradle
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Android SDK and native tools
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install 'platforms;android-36' 'build-tools;35.0.0'
+          sudo apt-get update -qq
+          sudo apt-get install -y patchelf
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.14.4'
+      - name: Restore native assets and test signing key
+        run: |
+          python3 tools/prepare_ci_assets_1_2.py
+          base64 --decode signing/vietvoice-test.keystore.base64 > signing/vietvoice-test.keystore
+      - name: Unit tests
+        run: gradle :app:testDebugUnitTest --stacktrace
+      - name: Build Android APK
+        run: gradle :app:assembleRelease --stacktrace
+      - name: Verify APK signature and alignment
+        run: |
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose app/build/outputs/apk/release/app-release.apk
+          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c 4 app/build/outputs/apk/release/app-release.apk
+          cp app/build/outputs/apk/release/app-release.apk VietVoice-AI-1.4.8-AutoLanguage.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: VietVoice-1.4.8-AutoLanguage
+          path: VietVoice-AI-1.4.8-AutoLanguage.apk
+      - name: Publish test release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v1.4.8-autolang-${GITHUB_RUN_NUMBER}" VietVoice-AI-1.4.8-AutoLanguage.apk --target "${GITHUB_SHA}" --prerelease --title "VietVoice 1.4.8 Auto Language (test)" --notes "Autodetect SenseVoice audio language, routing transcript to Vietnamese translation by detected source, manual fallback. Runtime model accuracy/Android capture needs device testing."
