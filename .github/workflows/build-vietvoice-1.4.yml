@@ -1,0 +1,59 @@
+name: VietVoice AI 1.4 Browser Video Boost
+on:
+  workflow_dispatch:
+  push:
+    branches: [vietvoice-1.4-browser-pro]
+    paths:
+      - 'VietVoice-1.4-CI-bundle.zip'
+      - '.github/workflows/build-vietvoice-1.4.yml'
+permissions:
+  contents: write
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Unpack browser source and verify scope
+        run: |
+          unzip -t VietVoice-1.4-CI-bundle.zip
+          unzip -oq VietVoice-1.4-CI-bundle.zip -d .
+          test -f app/src/main/java/vn/ca/vietvoiceoffline/BrowserActivity.java
+          test -f app/src/main/java/vn/ca/vietvoiceoffline/VideoBoostActivity.java
+          test -f app/src/main/java/vn/ca/vietvoiceoffline/VideoUrlPolicy.java
+          ! grep -r -q 'com.google.mlkit' app/src/main/java app/src/main/kotlin app/build.gradle
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Android SDK and native tools
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "platforms;android-35" "build-tools;35.0.0"
+          sudo apt-get update -qq
+          sudo apt-get install -y patchelf
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Restore native dependencies
+        run: |
+          python3 tools/prepare_ci_assets_1_2.py
+          base64 --decode signing/vietvoice-test.keystore.base64 > signing/vietvoice-test.keystore
+      - name: Unit tests
+        run: gradle :app:testDebugUnitTest --stacktrace
+      - name: Build signed APK
+        run: gradle :app:assembleRelease --stacktrace
+      - name: Verify signature and alignment
+        run: |
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose app/build/outputs/apk/release/app-release.apk
+          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c 4 app/build/outputs/apk/release/app-release.apk
+          cp app/build/outputs/apk/release/app-release.apk VietVoice-AI-1.4-Browser-Pro.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: VietVoice-AI-1.4-Browser-Pro
+          path: VietVoice-AI-1.4-Browser-Pro.apk
+      - name: Publish personal APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v1.4-browser-${GITHUB_RUN_NUMBER}" VietVoice-AI-1.4-Browser-Pro.apk --title "VietVoice 1.4 - Browser Pro + Video Boost" --notes "Personal trial build. Native HTML5 browser, direct MP4/HLS/DASH Video Boost, adjustable buffer, disk cache, mini player, selected-text translation. Device validation pending; protected video links not supported."
