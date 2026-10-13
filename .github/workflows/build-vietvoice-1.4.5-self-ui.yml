@@ -71,9 +71,9 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: VietVoice-1.4.5-SelfUI
-          path: VietVoice-AI-1.4.4-Brain-Studio.apk
+          path: VietVoice-AI-1.4.5-SelfUI.apk
       - name: Publish test release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "v1.4.5-selfui-${GITHUB_RUN_NUMBER}" VietVoice-AI-1.4.4-Brain-Studio.apk --target "${GITHUB_SHA}" --prerelease --title "VietVoice 1.4.5 Self UI (test)" --notes "Reversible UI commands through central AI chat, settings persisted, LiteRT text-only first. Tested by CI, device validation still needed."
+          gh release create "v1.4.5-selfui-${GITHUB_RUN_NUMBER}" VietVoice-AI-1.4.5-SelfUI.apk --target "${GITHUB_SHA}" --prerelease --title "VietVoice 1.4.5 Self UI (test)" --notes "Reversible UI commands through central AI chat, settings persisted, LiteRT text-only first. Tested by CI, device validation still needed."
