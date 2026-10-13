@@ -1,0 +1,62 @@
+name: Build VietVoice AI 1.4.2 Secure DNS
+on:
+  workflow_dispatch:
+  push:
+    branches: [vietvoice-1.4.2-secure-dns]
+    paths:
+      - 'VietVoice-1.4.2-DNS-overlay.zip.base64'
+      - '.github/workflows/build-vietvoice-1.4.2-doh.yml'
+permissions:
+  contents: write
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore VietVoice 1.4.1 project and apply 1.4.2 overlay
+        shell: bash
+        run: |
+          set -euo pipefail
+          unzip -t VietVoice-1.4.1-CI-bundle.zip
+          unzip -oq VietVoice-1.4.1-CI-bundle.zip -d .
+          base64 --decode VietVoice-1.4.2-DNS-overlay.zip.base64 > /tmp/vv142-overlay.zip
+          echo "ee574ce74b2e0564273dbc4fc3765503111c7634bda49b9e617168542763dd92  /tmp/vv142-overlay.zip" | sha256sum -c -
+          unzip -oq /tmp/vv142-overlay.zip -d .
+          test -f app/src/main/java/vn/ca/vietvoiceoffline/BrowserDohManager.java
+          test -f app/src/main/java/vn/ca/vietvoiceoffline/DohProxyServer.java
+          grep -q "versionCode 142" app/build.gradle
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Android SDK 35 and native tools
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install 'platforms;android-35' 'build-tools;35.0.0'
+          sudo apt-get update -qq
+          sudo apt-get install -y patchelf
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - name: Restore project dependencies
+        run: |
+          python3 tools/prepare_ci_assets_1_2.py
+          base64 --decode signing/vietvoice-test.keystore.base64 > signing/vietvoice-test.keystore
+      - name: Unit tests
+        run: gradle :app:testDebugUnitTest --stacktrace
+      - name: Build signed APK
+        run: gradle :app:assembleRelease --stacktrace
+      - name: Verify APK signature
+        run: |
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose app/build/outputs/apk/release/app-release.apk
+          cp app/build/outputs/apk/release/app-release.apk VietVoice-AI-1.4.2-SecureDNS.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: VietVoice-1.4.2-SecureDNS
+          path: VietVoice-AI-1.4.2-SecureDNS.apk
+      - name: Publish test APK release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v1.4.2-securedns-${GITHUB_RUN_NUMBER}" VietVoice-AI-1.4.2-SecureDNS.apk --target "${GITHUB_SHA}" --prerelease --title "VietVoice 1.4.2 Secure DNS (test)" --notes "Experimental DNS-over-HTTPS and compact browser menu. Signed with project test key. Requires on-device verification; some WebView traffic may bypass the DoH proxy."
