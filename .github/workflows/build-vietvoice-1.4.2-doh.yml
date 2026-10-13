@@ -23,6 +23,7 @@ jobs:
           base64 --decode VietVoice-1.4.2-DNS-overlay.zip.base64 > /tmp/vv142-overlay.zip
           echo "ee574ce74b2e0564273dbc4fc3765503111c7634bda49b9e617168542763dd92  /tmp/vv142-overlay.zip" | sha256sum -c -
           unzip -oq /tmp/vv142-overlay.zip -d .
+          sed -i 's/<domain>/<domain includeSubdomains="false">/g' app/src/main/res/xml/network_security_config.xml
           test -f app/src/main/java/vn/ca/vietvoiceoffline/BrowserDohManager.java
           test -f app/src/main/java/vn/ca/vietvoiceoffline/DohProxyServer.java
           grep -q "versionCode 142" app/build.gradle
