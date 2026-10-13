@@ -42,6 +42,7 @@ jobs:
           base64 --decode VietVoice-1.4.8-AutoLang-overlay.base64 > /tmp/vv148.zip
           echo "85b40263ec7032372a0a0003f12b5204eb8b0a82cb6919d12cb8a74a5b1584ac  /tmp/vv148.zip" | sha256sum -c -
           unzip -oq /tmp/vv148.zip -d .
+          sed -i 's/checking=true;String lang=language();boolean audio=mode.getSelectedItemPosition()!=1;/checking=true;String lang=modelCheckLanguage();boolean audio=!"ocr".equals(captureMode());/' app/src/main/java/vn/ca/vietvoiceoffline/MainActivity.java
           test -f app/src/main/java/vn/ca/vietvoiceoffline/AutoLanguagePolicy.java
           test -f app/src/test/java/vn/ca/vietvoiceoffline/AutoLanguagePolicyTest.java
           test -f app/src/main/java/vn/ca/vietvoiceoffline/AdultCinemaPolicy.java
