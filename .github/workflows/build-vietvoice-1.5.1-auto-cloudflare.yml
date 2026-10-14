@@ -70,4 +70,4 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "v1.5.1-auto-cloudflare-preview-${{GITHUB_RUN_NUMBER}}" VietVoice-AI-1.5.1-Auto-Cloudflare.apk --target "${{GITHUB_SHA}}" --prerelease --title 'VietVoice 1.5.1 Auto + Cloudflare (TEST)' --notes 'Experimental auto-preprocess, numbered on-device video playlist and Cloudflare Private DNS/WARP companion launcher. VPN permissions remain controlled by Android and the Cloudflare app.'
+          gh release create "v1.5.1-auto-cloudflare-preview-${GITHUB_RUN_NUMBER}" VietVoice-AI-1.5.1-Auto-Cloudflare.apk --target "${GITHUB_SHA}" --prerelease --title 'VietVoice 1.5.1 Auto + Cloudflare (TEST)' --notes 'Experimental auto-preprocess, numbered on-device video playlist and Cloudflare Private DNS/WARP companion launcher. VPN permissions remain controlled by Android and the Cloudflare app.'
