@@ -1,1 +1,66 @@
-The requested file reference is not currently visible. Use files.search or files.list to rediscover the file, then retry with a returned ref_id or file_id.
+name: Build VietVoice 1.4.9 Lite Dubbing
+on:
+  workflow_dispatch:
+  push:
+    branches: [vietvoice-1.4.9-lite-dubbing]
+    paths:
+      - 'VietVoice-1.4.9-Lite-overlay.base64'
+      - '.github/workflows/build-vietvoice-1.4.9-lite-dubbing.yml'
+permissions:
+  contents: write
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore base app and replace heavyweight modules
+        shell: bash
+        run: |
+          set -euo pipefail
+          unzip -oq VietVoice-1.4.1-CI-bundle.zip -d .
+          rm -rf app/src/main/java/vn/ca/vietvoiceoffline app/src/main/kotlin app/src/test app/src/main/assets
+          base64 --decode VietVoice-1.4.9-Lite-overlay.base64 > /tmp/vv149.zip
+          echo 'fe231cc7b9d80404a58a2d19a7223a220ca0b0a2daa5db5b68c56c15c62a961d  /tmp/vv149.zip' | sha256sum -c -
+          unzip -oq /tmp/vv149.zip -d .
+          sed -i 's/8.7.3/8.13.2/g' build.gradle
+          test -f app/src/main/java/vn/ca/vietvoiceoffline/CaptureService.java
+          grep -q 'versionCode 149' app/build.gradle
+          test $(find app/src/main/java -name '*.java' | wc -l) -eq 6
+          ! grep -q -E 'litert|tensorflow|onnxruntime-android|tesseract|media3' app/build.gradle
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install Android SDK and native tools
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install 'platforms;android-36' 'build-tools;35.0.0'
+          sudo apt-get update -qq
+          sudo apt-get install -y patchelf
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.14.4'
+      - name: Restore sherpa runtime and signing key
+        run: |
+          python3 tools/prepare_ci_assets_1_2.py
+          rm -rf app/src/main/assets
+          base64 --decode signing/vietvoice-test.keystore.base64 > signing/vietvoice-test.keystore
+      - name: Unit tests
+        run: gradle :app:testDebugUnitTest --stacktrace
+      - name: Build APK
+        run: gradle :app:assembleRelease --stacktrace
+      - name: Validate signed APK
+        run: |
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose app/build/outputs/apk/release/app-release.apk
+          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c 4 app/build/outputs/apk/release/app-release.apk
+          cp app/build/outputs/apk/release/app-release.apk VietVoice-AI-1.4.9-Lite.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: VietVoice-1.4.9-Lite-APK
+          path: VietVoice-AI-1.4.9-Lite.apk
+      - name: Publish test release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v1.4.9-lite-${GITHUB_RUN_NUMBER}" VietVoice-AI-1.4.9-Lite.apk --target "${GITHUB_SHA}" --prerelease --title 'VietVoice 1.4.9 Lite Dubbing (TEST)' --notes 'Reduced modules to one Sherpa SenseVoice ASR, ML Kit on-device translation, Android Vietnamese TTS, one WebView. Requires on-device models and permissions. Audio capture blocked by some video providers. Not yet validated on a real Android device.'
