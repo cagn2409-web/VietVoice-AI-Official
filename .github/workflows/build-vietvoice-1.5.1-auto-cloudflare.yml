@@ -1,0 +1,73 @@
+name: Build VietVoice 1.5.1 Auto + Cloudflare
+on:
+  workflow_dispatch:
+  push:
+    branches: [vietvoice-1.5.1-auto-library-cloudflare]
+    paths:
+      - 'VietVoice-1.5.1-Auto-Cloudflare-overlay.base64'
+      - '.github/workflows/build-vietvoice-1.5.1-auto-cloudflare.yml'
+permissions:
+  contents: write
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reconstruct base and overlay patches
+        shell: bash
+        run: |
+          set -euo pipefail
+          unzip -oq VietVoice-1.4.1-CI-bundle.zip -d .
+          rm -rf app/src/main/java/vn/ca/vietvoiceoffline app/src/main/kotlin app/src/test app/src/main/assets
+          base64 --decode VietVoice-1.4.9-Lite-overlay.base64 > /tmp/vv149.zip
+          echo 'fe231cc7b9d80404a58a2d19a7223a220ca0b0a2daa5db5b68c56c15c62a961d  /tmp/vv149.zip' | sha256sum -c -
+          unzip -oq /tmp/vv149.zip -d .
+          base64 --decode VietVoice-1.5-PreDub-overlay.base64 > /tmp/vv150.zip
+          echo '3b1b778c8f91e0d25c95397a7f5a132610c8c81df10e021bf0c81c39f40be834  /tmp/vv150.zip' | sha256sum -c -
+          unzip -oq /tmp/vv150.zip -d .
+          base64 --decode VietVoice-1.5.1-Auto-Cloudflare-overlay.base64 > /tmp/vv151.zip
+          echo 'c76c56d8397fabb5dffde8938299b698b716d19b96639ffaf601befeb67fda5c  /tmp/vv151.zip' | sha256sum -c -
+          unzip -oq /tmp/vv151.zip -d .
+          sed -i 's/8.7.3/8.13.2/g' build.gradle
+          test -f app/src/main/java/vn/ca/vietvoiceoffline/PreDubLibrary.java
+          test -f app/src/main/java/vn/ca/vietvoiceoffline/CloudflareActivity.java
+          grep -q 'versionCode 151' app/build.gradle
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Android build dependencies
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install 'platforms;android-36' 'build-tools;35.0.0'
+          sudo apt-get update -qq
+          sudo apt-get install -y patchelf
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.14.4'
+      - name: Restore native runtime and signing
+        run: |
+          python3 tools/prepare_ci_assets_1_2.py
+          rm -rf app/src/main/assets
+          mkdir -p signing
+          base64 --decode signing/vietvoice-test.keystore.base64 > signing/vietvoice-test.keystore
+      - name: Unit tests
+        run: gradle :app:testDebugUnitTest --no-daemon --stacktrace
+      - name: Build signed preview APK
+        run: gradle :app:assemblePreview --no-daemon --stacktrace
+      - name: Verify APK
+        run: |
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose app/build/outputs/apk/preview/app-preview.apk
+          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c 4 app/build/outputs/apk/preview/app-preview.apk
+          cp app/build/outputs/apk/preview/app-preview.apk VietVoice-AI-1.5.1-Auto-Cloudflare.apk
+          sha256sum VietVoice-AI-1.5.1-Auto-Cloudflare.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: VietVoice-1.5.1-Auto-Cloudflare-APK
+          path: VietVoice-AI-1.5.1-Auto-Cloudflare.apk
+      - name: Publish prerelease APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v1.5.1-auto-cloudflare-preview-${{GITHUB_RUN_NUMBER}}" VietVoice-AI-1.5.1-Auto-Cloudflare.apk --target "${{GITHUB_SHA}}" --prerelease --title 'VietVoice 1.5.1 Auto + Cloudflare (TEST)' --notes 'Experimental auto-preprocess, numbered on-device video playlist and Cloudflare Private DNS/WARP companion launcher. VPN permissions remain controlled by Android and the Cloudflare app.'
