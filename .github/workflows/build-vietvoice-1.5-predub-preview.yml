@@ -1,0 +1,70 @@
+name: Build VietVoice 1.5 PreDub APK
+on:
+  workflow_dispatch:
+  push:
+    branches: [vietvoice-1.5-predub-preview]
+    paths:
+      - 'VietVoice-1.5-PreDub-overlay.base64'
+      - '.github/workflows/build-vietvoice-1.5-predub-preview.yml'
+permissions:
+  contents: write
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reconstruct VietVoice 1.4.9 Lite and apply PreDub 1.5
+        shell: bash
+        run: |
+          set -euo pipefail
+          unzip -oq VietVoice-1.4.1-CI-bundle.zip -d .
+          rm -rf app/src/main/java/vn/ca/vietvoiceoffline app/src/main/kotlin app/src/test app/src/main/assets
+          base64 --decode VietVoice-1.4.9-Lite-overlay.base64 > /tmp/vv149.zip
+          echo 'fe231cc7b9d80404a58a2d19a7223a220ca0b0a2daa5db5b68c56c15c62a961d  /tmp/vv149.zip' | sha256sum -c -
+          unzip -oq /tmp/vv149.zip -d .
+          base64 --decode VietVoice-1.5-PreDub-overlay.base64 > /tmp/vv150.zip
+          echo '3b1b778c8f91e0d25c95397a7f5a132610c8c81df10e021bf0c81c39f40be834  /tmp/vv150.zip' | sha256sum -c -
+          unzip -oq /tmp/vv150.zip -d .
+          sed -i 's/8.7.3/8.13.2/g' build.gradle
+          test -f app/src/main/java/vn/ca/vietvoiceoffline/PreDubEngine.java
+          test -f app/src/main/java/vn/ca/vietvoiceoffline/PreDubActivity.java
+          grep -q 'versionCode 150' app/build.gradle
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install Android SDK and native tools
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install 'platforms;android-36' 'build-tools;35.0.0'
+          sudo apt-get update -qq
+          sudo apt-get install -y patchelf
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.14.4'
+      - name: Restore sherpa runtime and signing
+        run: |
+          python3 tools/prepare_ci_assets_1_2.py
+          rm -rf app/src/main/assets
+          mkdir -p signing
+          base64 --decode signing/vietvoice-test.keystore.base64 > signing/vietvoice-test.keystore
+      - name: Run unit tests
+        run: gradle :app:testDebugUnitTest --no-daemon --stacktrace
+      - name: Build signed preview APK
+        run: gradle :app:assemblePreview --no-daemon --stacktrace
+      - name: Verify APK and package
+        run: |
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose app/build/outputs/apk/preview/app-preview.apk
+          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c 4 app/build/outputs/apk/preview/app-preview.apk
+          cp app/build/outputs/apk/preview/app-preview.apk VietVoice-AI-1.5.0-PreDub-Preview.apk
+          sha256sum VietVoice-AI-1.5.0-PreDub-Preview.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: VietVoice-1.5.0-PreDub-Preview-APK
+          path: VietVoice-AI-1.5.0-PreDub-Preview.apk
+      - name: Publish test APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v1.5.0-predub-preview-${GITHUB_RUN_NUMBER}" VietVoice-AI-1.5.0-PreDub-Preview.apk --target "${GITHUB_SHA}" --prerelease --title 'VietVoice 1.5.0 PreDub (TEST)' --notes 'Experimental pre-dubbing APK. Install separately from 1.4.9. Does not support protected DRM sources. Not yet tested on a physical Android device.'
