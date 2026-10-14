@@ -27,7 +27,7 @@ jobs:
           echo '3b1b778c8f91e0d25c95397a7f5a132610c8c81df10e021bf0c81c39f40be834  /tmp/vv150.zip' | sha256sum -c -
           unzip -oq /tmp/vv150.zip -d .
           base64 --decode VietVoice-1.5.1-Auto-Cloudflare-overlay.base64 > /tmp/vv151.zip
-          echo 'c76c56d8397fabb5dffde8938299b698b716d19b96639ffaf601befeb67fda5c  /tmp/vv151.zip' | sha256sum -c -
+          echo 'c999efa860efd9d872bcb929d5f55f4c20c0ea0c05debb45d77766af2e5d79e4  /tmp/vv151.zip' | sha256sum -c -
           unzip -oq /tmp/vv151.zip -d .
           sed -i 's/8.7.3/8.13.2/g' build.gradle
           test -f app/src/main/java/vn/ca/vietvoiceoffline/PreDubLibrary.java
